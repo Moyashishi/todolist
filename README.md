@@ -4,7 +4,7 @@
 
 ## 下载
 
-无需安装 Python 的最新版程序可从 [GitHub Releases](https://github.com/thebsf/todolist/releases/latest) 下载 `静默待办.exe`。
+无需安装 Python 的最新版程序可从 [GitHub Releases](https://github.com/thebsf/todolist/releases/latest) 下载 `QuietTodoWidget.exe`（静默待办）。
 
 ## 当前功能
 
