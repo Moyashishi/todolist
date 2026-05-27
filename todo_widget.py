@@ -554,6 +554,7 @@ class QuietTodoWidget:
         self.worker_results: queue.Queue = queue.Queue()
         self.applied_opacity = None
         self.appearance_signature = None
+        self.tasks_hovered = False
 
         self._configure_window()
         self._build_window()
@@ -636,13 +637,16 @@ class QuietTodoWidget:
             self.panel, width=6, bd=0, highlightthickness=0, cursor="sb_v_double_arrow"
         )
         self.scroll_thumb = self.scroll_track.create_rectangle(2, 0, 5, 0, outline="")
-        self.scroll_track.place(relx=1, rely=0.12, relheight=0.68, x=-4, anchor="ne")
         self.scroll_track_drag_y = None
         self.scroll_track.bind("<ButtonPress-1>", self.start_scroll_thumb_drag)
         self.scroll_track.bind("<B1-Motion>", self.drag_scroll_thumb)
         self.scroll_track.bind("<ButtonRelease-1>", self.stop_scroll_thumb_drag)
+        self.scroll_track.bind("<Enter>", self.enter_tasks_area)
+        self.scroll_track.bind("<Leave>", self.leave_tasks_area)
         self.tasks_frame.bind("<Configure>", self.update_scroll_region)
         self.canvas.bind("<Configure>", self.resize_task_canvas)
+        self.canvas.bind("<Enter>", self.enter_tasks_area)
+        self.canvas.bind("<Leave>", self.leave_tasks_area)
         self.canvas.bind_all("<MouseWheel>", self.on_mousewheel)
 
         self.grip = tk.Label(self.panel, text="◢", anchor="se", cursor="size_nw_se")
@@ -856,6 +860,23 @@ class QuietTodoWidget:
         self.canvas.itemconfigure(self.tasks_window, width=event.width)
         self.update_scroll_region()
 
+    def enter_tasks_area(self, _event=None) -> None:
+        self.tasks_hovered = True
+        self.update_scroll_thumb(*self.canvas.yview())
+
+    def leave_tasks_area(self, _event=None) -> None:
+        self.root.after_idle(self.hide_scroll_thumb_if_outside)
+
+    def hide_scroll_thumb_if_outside(self) -> None:
+        pointer_x = self.canvas.winfo_pointerx()
+        pointer_y = self.canvas.winfo_pointery()
+        left = self.canvas.winfo_rootx()
+        top = self.canvas.winfo_rooty()
+        right = left + self.canvas.winfo_width() + self.scroll_track.winfo_width()
+        bottom = top + self.canvas.winfo_height()
+        self.tasks_hovered = left <= pointer_x <= right and top <= pointer_y <= bottom
+        self.update_scroll_thumb(*self.canvas.yview())
+
     def on_mousewheel(self, event) -> None:
         if not self.root.winfo_exists():
             return
@@ -865,8 +886,6 @@ class QuietTodoWidget:
         bottom = top + self.canvas.winfo_height()
         if not (left <= event.x_root <= right and top <= event.y_root <= bottom):
             return
-        if self.settings["locked"]:
-            return "break"
         content_height = self.tasks_frame.winfo_reqheight()
         viewport_height = self.canvas.winfo_height()
         if content_height <= viewport_height:
@@ -881,7 +900,7 @@ class QuietTodoWidget:
 
     def update_scroll_thumb(self, first: str | float, last: str | float) -> None:
         first, last = float(first), float(last)
-        if last - first >= 0.999:
+        if last - first >= 0.999 or not self.tasks_hovered:
             self.scroll_track.place_forget()
             return
         if not self.scroll_track.winfo_manager():
